@@ -1,0 +1,320 @@
+-- SERVICES
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local VirtualUser = game:GetService("VirtualUser")
+
+local player = Players.LocalPlayer
+
+-- DELETE OLD
+if player.PlayerGui:FindFirstChild("RyoukenHub") then
+	player.PlayerGui.RyoukenHub:Destroy()
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui", player.PlayerGui)
+gui.Name = "RyoukenHub"
+gui.ResetOnSpawn = false
+
+-- NOTIF
+local function notify(text)
+	pcall(function()
+		game.StarterGui:SetCore("SendNotification", {
+			Title = "RyoukenHub",
+			Text = text,
+			Duration = 3
+		})
+	end)
+end
+
+-- MAIN
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0,0,0,0)
+main.Position = UDim2.new(0.5,-400,0.5,-225)
+main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+Instance.new("UICorner", main)
+
+TweenService:Create(main,TweenInfo.new(0.4),{
+	Size = UDim2.new(0,800,0,450)
+}):Play()
+
+-- SIDEBAR
+local sidebar = Instance.new("Frame", main)
+sidebar.Size = UDim2.new(0,200,1,0)
+sidebar.BackgroundColor3 = Color3.fromRGB(15,15,15)
+Instance.new("UICorner", sidebar)
+
+-- PROFILE
+local pfp = Instance.new("ImageLabel", sidebar)
+pfp.Size = UDim2.new(0,70,0,70)
+pfp.Position = UDim2.new(0.5,-35,0,10)
+pfp.Image = "rbxassetid://71582059950977"
+pfp.BackgroundTransparency = 1
+Instance.new("UICorner", pfp).CornerRadius = UDim.new(1,0)
+
+local name = Instance.new("TextLabel", sidebar)
+name.Size = UDim2.new(1,0,0,30)
+name.Position = UDim2.new(0,0,0,80)
+name.Text = "Ryouken Hub"
+name.TextColor3 = Color3.new(1,1,1)
+name.BackgroundTransparency = 1
+name.TextScaled = true
+
+-- CONTENT
+local content = Instance.new("Frame", main)
+content.Size = UDim2.new(1,-220,1,-20)
+content.Position = UDim2.new(0,210,0,10)
+content.BackgroundColor3 = Color3.fromRGB(25,25,25)
+Instance.new("UICorner", content)
+
+-- TITLE GLOW
+local title = Instance.new("TextLabel", content)
+title.Size = UDim2.new(1,0,0,50)
+title.Text = "RYOUKEN HUB"
+title.BackgroundTransparency = 1
+title.TextScaled = true
+title.TextColor3 = Color3.new(1,1,1)
+
+task.spawn(function()
+	while true do
+		TweenService:Create(title,TweenInfo.new(1),{TextColor3 = Color3.fromRGB(0,170,255)}):Play()
+		task.wait(1)
+		TweenService:Create(title,TweenInfo.new(1),{TextColor3 = Color3.fromRGB(255,255,255)}):Play()
+		task.wait(1)
+	end
+end)
+
+-- TAB SYSTEM
+local pages = {}
+
+local function createPage(name)
+	local f = Instance.new("Frame", content)
+	f.Size = UDim2.new(1,0,1,-50)
+	f.Position = UDim2.new(0,0,0,50)
+	f.BackgroundTransparency = 1
+	f.Visible = false
+	pages[name] = f
+	return f
+end
+
+local function showPage(name)
+	for _,v in pairs(pages) do v.Visible = false end
+	title.Text = name
+	
+	if pages[name] then
+		local p = pages[name]
+		p.Visible = true
+		p.BackgroundTransparency = 1
+		
+		TweenService:Create(p,TweenInfo.new(0.3),{
+			BackgroundTransparency = 0
+		}):Play()
+	end
+end
+
+-- BUTTON SYSTEM
+local function createButton(parent,text,y,cb)
+	local b = Instance.new("TextButton", parent)
+	b.Size = UDim2.new(0.9,0,0,45)
+	b.Position = UDim2.new(0.05,0,0,y)
+	b.Text = text
+	b.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	b.TextColor3 = Color3.new(1,1,1)
+	b.TextScaled = true
+	Instance.new("UICorner", b)
+
+	b.MouseEnter:Connect(function()
+		TweenService:Create(b,TweenInfo.new(0.2),{
+			BackgroundColor3 = Color3.fromRGB(60,60,60)
+		}):Play()
+	end)
+
+	b.MouseLeave:Connect(function()
+		TweenService:Create(b,TweenInfo.new(0.2),{
+			BackgroundColor3 = Color3.fromRGB(30,30,30)
+		}):Play()
+	end)
+
+	b.MouseButton1Click:Connect(cb)
+end
+
+local function createTab(name,y)
+	local btn = Instance.new("TextButton", sidebar)
+	btn.Size = UDim2.new(1,-20,0,40)
+	btn.Position = UDim2.new(0,10,0,y)
+	btn.Text = name
+	btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	btn.TextColor3 = Color3.new(1,1,1)
+	Instance.new("UICorner", btn)
+
+	local page = createPage(name)
+
+	btn.MouseButton1Click:Connect(function()
+		showPage(name)
+	end)
+
+	return page
+end
+
+-- TABS
+local homePage = createTab("Home",150)
+local visualPage = createTab("Visual",200)
+local miscPage = createTab("Misc",250)
+createTab("Other",300)
+
+showPage("Home")
+
+-- HOME INFO
+local info = Instance.new("TextLabel", homePage)
+info.Size = UDim2.new(0.9,0,0,120)
+info.Position = UDim2.new(0.05,0,0,10)
+info.BackgroundColor3 = Color3.fromRGB(30,30,30)
+info.TextColor3 = Color3.new(1,1,1)
+info.TextScaled = true
+info.TextWrapped = true
+info.Text = "Halo Saya dari Ryouken (Dev)\n\nMohon maaf jika ada bugs karena ini masih Beta Test."
+Instance.new("UICorner", info)
+
+-- VISUAL
+local esp=false
+local fb=false
+local oldBright = Lighting.Brightness
+local oldTime = Lighting.ClockTime
+
+createButton(visualPage,"ESP",10,function()
+	esp = not esp
+	notify("ESP: "..(esp and "ON" or "OFF"))
+end)
+
+createButton(visualPage,"FullBright",60,function()
+	fb = not fb
+	if fb then
+		Lighting.Brightness=2
+		Lighting.ClockTime=14
+	else
+		Lighting.Brightness=oldBright
+		Lighting.ClockTime=oldTime
+	end
+	notify("FullBright: "..(fb and "ON" or "OFF"))
+end)
+
+-- MISC
+local humanoid
+player.CharacterAdded:Connect(function(c)
+	humanoid = c:WaitForChild("Humanoid")
+end)
+if player.Character then
+	humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+end
+
+local ws,jp,jh,inf,flying,noclip,antiAFK=false,false,false,false,false,false,false
+
+createButton(miscPage,"WalkSpeed",10,function()
+	ws=not ws
+	if humanoid then humanoid.WalkSpeed=ws and 50 or 16 end
+	notify("WalkSpeed: "..(ws and "ON" or "OFF"))
+end)
+
+createButton(miscPage,"JumpPower",60,function()
+	jp=not jp
+	if humanoid then humanoid.JumpPower=jp and 100 or 50 end
+	notify("JumpPower: "..(jp and "ON" or "OFF"))
+end)
+
+createButton(miscPage,"JumpHeight",110,function()
+	jh=not jh
+	if humanoid then humanoid.JumpHeight=jh and 50 or 7.2 end
+	notify("JumpHeight: "..(jh and "ON" or "OFF"))
+end)
+
+-- INFINITE JUMP
+UIS.JumpRequest:Connect(function()
+	if inf and humanoid then
+		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+	end
+end)
+
+createButton(miscPage,"Infinite Jump",160,function()
+	inf = not inf
+	notify("Infinite Jump: "..(inf and "ON" or "OFF"))
+end)
+
+-- FLY (FIXED)
+local bv,bg
+local ctrl={f=0,b=0,l=0,r=0,u=0,d=0}
+
+UIS.InputBegan:Connect(function(i,g)
+	if g then return end
+	if i.KeyCode==Enum.KeyCode.W then ctrl.f=1 end
+	if i.KeyCode==Enum.KeyCode.S then ctrl.b=-1 end
+	if i.KeyCode==Enum.KeyCode.A then ctrl.l=-1 end
+	if i.KeyCode==Enum.KeyCode.D then ctrl.r=1 end
+	if i.KeyCode==Enum.KeyCode.Space then ctrl.u=1 end
+	if i.KeyCode==Enum.KeyCode.LeftControl then ctrl.d=-1 end
+end)
+
+UIS.InputEnded:Connect(function(i)
+	if i.KeyCode==Enum.KeyCode.W then ctrl.f=0 end
+	if i.KeyCode==Enum.KeyCode.S then ctrl.b=0 end
+	if i.KeyCode==Enum.KeyCode.A then ctrl.l=0 end
+	if i.KeyCode==Enum.KeyCode.D then ctrl.r=0 end
+	if i.KeyCode==Enum.KeyCode.Space then ctrl.u=0 end
+	if i.KeyCode==Enum.KeyCode.LeftControl then ctrl.d=0 end
+end)
+
+RunService.RenderStepped:Connect(function()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if flying and root and bv then
+		local cam=workspace.CurrentCamera
+		local dir=(cam.CFrame.LookVector*(ctrl.f+ctrl.b)+cam.CFrame.RightVector*(ctrl.r+ctrl.l)+Vector3.new(0,ctrl.u+ctrl.d,0))
+		bv.Velocity=dir*50
+	end
+end)
+
+createButton(miscPage,"Fly",210,function()
+	flying=not flying
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+
+	if flying and root then
+		bv=Instance.new("BodyVelocity",root)
+		bv.MaxForce=Vector3.new(1e9,1e9,1e9)
+
+		bg=Instance.new("BodyGyro",root)
+		bg.MaxTorque=Vector3.new(1e9,1e9,1e9)
+		bg.CFrame=root.CFrame
+	else
+		if bv then bv:Destroy() bv=nil end
+		if bg then bg:Destroy() bg=nil end
+	end
+	notify("Fly: "..(flying and "ON" or "OFF"))
+end)
+
+-- NOCLIP
+RunService.Stepped:Connect(function()
+	if noclip and player.Character then
+		for _,v in pairs(player.Character:GetDescendants()) do
+			if v:IsA("BasePart") then v.CanCollide=false end
+		end
+	end
+end)
+
+createButton(miscPage,"Noclip",260,function()
+	noclip=not noclip
+	notify("Noclip: "..(noclip and "ON" or "OFF"))
+end)
+
+-- ANTI AFK
+player.Idled:Connect(function()
+	if antiAFK then
+		VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+		task.wait(1)
+		VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+	end
+end)
+
+createButton(miscPage,"Anti AFK",310,function()
+	antiAFK = not antiAFK
+	notify("Anti AFK: "..(antiAFK and "ON" or "OFF"))
+end)
