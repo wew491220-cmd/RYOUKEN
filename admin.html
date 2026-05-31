@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin KomikRyo</title>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:#111;
+color:white;
+padding:20px;
+}
+
+h2{margin-bottom:15px;}
+
+input,select{
+width:100%;
+padding:12px;
+margin:8px 0;
+border:none;
+border-radius:8px;
+background:#222;
+color:white;
+}
+
+button{
+width:100%;
+padding:12px;
+margin-top:10px;
+border:none;
+border-radius:8px;
+background:#4caf50;
+color:white;
+font-weight:bold;
+cursor:pointer;
+}
+
+button:hover{background:#45a049;}
+
+.card{
+background:#1b1b1b;
+padding:10px;
+margin-top:10px;
+border-radius:8px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>📤 Admin Upload Komik</h2>
+
+<input type="text" id="title" placeholder="Judul komik">
+<input type="text" id="chapter" placeholder="Chapter">
+
+<select id="genre">
+<option>Action</option>
+<option>Romance</option>
+<option>Fantasy</option>
+<option>School Life</option>
+<option>Comedy</option>
+</select>
+
+<!-- MULTI IMAGE -->
+<input type="file" id="img" accept="image/*" multiple>
+
+<button onclick="upload()">Upload Komik</button>
+
+<h3>📚 Data</h3>
+<div id="list"></div>
+
+<script>
+let data = JSON.parse(localStorage.getItem("komik")) || [];
+
+function upload(){
+
+let title = document.getElementById("title").value;
+let chapter = document.getElementById("chapter").value;
+let genre = document.getElementById("genre").value;
+let files = document.getElementById("img").files;
+
+if(!title || !chapter || files.length === 0){
+alert("Isi semua dulu!");
+return;
+}
+
+let pages = [];
+let loaded = 0;
+
+for(let i=0;i<files.length;i++){
+
+let reader = new FileReader();
+
+reader.onload = function(e){
+pages.push(e.target.result);
+loaded++;
+
+if(loaded === files.length){
+
+let item = {
+title,
+chapter,
+genre,
+img: pages[0],
+pages
+};
+
+data.push(item);
+
+localStorage.setItem("komik", JSON.stringify(data));
+
+render();
+clear();
+
+alert("Upload berhasil!");
+}
+};
+
+reader.readAsDataURL(files[i]);
+}
+}
+
+function render(){
+let list = document.getElementById("list");
+list.innerHTML = "";
+
+data.forEach((d,i)=>{
+list.innerHTML += `
+<div class="card">
+<b>${d.title}</b><br>
+${d.genre} - Chapter ${d.chapter}<br>
+<button onclick="hapus(${i})">Hapus</button>
+</div>
+`;
+});
+}
+
+function hapus(i){
+data.splice(i,1);
+localStorage.setItem("komik", JSON.stringify(data));
+render();
+}
+
+function clear(){
+document.getElementById("title").value = "";
+document.getElementById("chapter").value = "";
+document.getElementById("img").value = "";
+}
+
+render();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Detail Manga</title>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:#111;
+color:white;
+padding:20px;
+}
+
+.container{
+max-width:500px;
+margin:auto;
+}
+
+img{
+width:100%;
+border-radius:10px;
+margin-bottom:15px;
+}
+
+h1{
+margin-bottom:10px;
+}
+
+.info{
+background:#1b1b1b;
+padding:10px;
+border-radius:10px;
+margin-bottom:10px;
+}
+
+button{
+width:100%;
+padding:12px;
+border:none;
+border-radius:8px;
+background:#4caf50;
+color:white;
+font-weight:bold;
+cursor:pointer;
+margin-top:10px;
+}
+
+button:hover{
+background:#45a049;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<img id="cover" src="">
+
+<h1 id="title">Loading...</h1>
+
+<div class="info" id="genre"></div>
+<div class="info" id="chapter"></div>
+
+<button onclick="back()">⬅ Kembali</button>
+
+</div>
+
+<script>
+// ambil semua data komik
+let comics = JSON.parse(localStorage.getItem("komik")) || [];
+
+// ambil index dari index.html
+let index = localStorage.getItem("selectedManga");
+
+// validasi
+if(index === null || !comics[index]){
+document.body.innerHTML = "<h2 style='text-align:center'>Data tidak ditemukan</h2>";
+throw new Error("No data");
+}
+
+let data = comics[index];
+
+// tampilkan data
+document.getElementById("cover").src = data.img;
+document.getElementById("title").innerText = data.title;
+document.getElementById("genre").innerText = "Genre: " + data.genre;
+document.getElementById("chapter").innerText = "Chapter: " + data.chapter;
+
+// kembali ke index
+function back(){
+window.location.href = "index.html";
+}
+</script>
+
+</body>
+</html>
