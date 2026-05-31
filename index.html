@@ -21,6 +21,20 @@ font-weight:bold;
 text-align:center;
 }
 
+.search{
+padding:15px;
+}
+
+.search input{
+width:100%;
+padding:12px;
+border:none;
+border-radius:8px;
+background:#222;
+color:white;
+outline:none;
+}
+
 .grid{
 display:grid;
 grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
@@ -69,20 +83,37 @@ color:#aaa;
 
 <header>📚 KomikRyo</header>
 
+<div class="search">
+<input id="search" type="text" placeholder="Cari komik...">
+</div>
+
 <div id="list" class="grid">
 <div class="loading">Loading komik...</div>
 </div>
 
 <script>
+let allData = [];
+
+// LOAD DATA
 fetch("data.json")
 .then(res => res.json())
 .then(data => {
+allData = data;
+render(allData);
+})
+.catch(err => {
+document.getElementById("list").innerHTML =
+"<p class='loading'>Gagal load data.json</p>";
+console.log(err);
+});
 
+// RENDER FUNCTION
+function render(data){
 let list = document.getElementById("list");
 list.innerHTML = "";
 
 if(data.length === 0){
-list.innerHTML = "<p class='loading'>Belum ada komik</p>";
+list.innerHTML = "<p class='loading'>Tidak ada komik</p>";
 return;
 }
 
@@ -95,14 +126,20 @@ list.innerHTML += `
 </div>
 `;
 });
+}
 
-})
-.catch(err => {
-document.getElementById("list").innerHTML =
-"<p class='loading'>Gagal load data.json</p>";
-console.log(err);
+// SEARCH
+document.getElementById("search").addEventListener("input", function(){
+let keyword = this.value.toLowerCase();
+
+let filtered = allData.filter(item =>
+item.title.toLowerCase().includes(keyword)
+);
+
+render(filtered);
 });
 
+// OPEN MANGA
 function openManga(i){
 localStorage.setItem("selectedManga", i);
 window.location.href = "manga.html";
