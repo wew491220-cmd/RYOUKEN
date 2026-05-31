@@ -1,0 +1,20 @@
+[
+  {
+    "title": "Solo Leveling",
+    "genre": "Action",
+    "img": "https://via.placeholder.com/200x300",
+    "pages": [
+      "https://via.placeholder.com/600x900",
+      "https://via.placeholder.com/600x900/111"
+    ]
+  },
+  {
+    "title": "Nano Machine",
+    "genre": "Action",
+    "img": "https://via.placeholder.com/200x300",
+    "pages": [
+      "https://via.placeholder.com/600x900",
+      "https://via.placeholder.com/600x900/222"
+    ]
+  }
+]
