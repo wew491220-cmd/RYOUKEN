@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reader KomikRyo</title>
+<title>Reader Komik</title>
 
 <style>
 body{
@@ -14,14 +14,11 @@ justify-content:center;
 align-items:center;
 height:100vh;
 flex-direction:column;
-color:white;
-font-family:Arial;
 }
 
 img{
 max-width:100%;
 max-height:90vh;
-display:none;
 }
 
 .controls{
@@ -40,19 +37,12 @@ color:white;
 font-weight:bold;
 cursor:pointer;
 }
-
-#error{
-text-align:center;
-padding:20px;
-}
 </style>
 </head>
 
 <body>
 
-<div id="error">Loading...</div>
-
-<img id="page">
+<img id="img">
 
 <div class="controls">
 <button onclick="prev()">⬅</button>
@@ -60,39 +50,24 @@ padding:20px;
 </div>
 
 <script>
-// ambil data
-let comics = JSON.parse(localStorage.getItem("komik")) || [];
+let data = [];
 let index = localStorage.getItem("selectedManga");
-
-// validasi data utama
-if(index === null || !comics[index]){
-document.getElementById("error").innerText = "Komik tidak ditemukan";
-throw new Error("no manga");
-}
-
-let data = comics[index];
-let pages = data.pages || [];
-
-// validasi halaman
-if(pages.length === 0){
-document.getElementById("error").innerText = "Halaman komik kosong";
-throw new Error("no pages");
-}
-
-// UI
-let img = document.getElementById("page");
-let error = document.getElementById("error");
-
-error.style.display = "none";
-img.style.display = "block";
-
 let current = 0;
 
+fetch("data.json")
+.then(res => res.json())
+.then(json => {
+data = json;
+show();
+});
+
 function show(){
-img.src = pages[current];
+let pages = data[index].pages;
+document.getElementById("img").src = pages[current];
 }
 
 function next(){
+let pages = data[index].pages;
 if(current < pages.length - 1){
 current++;
 show();
@@ -105,9 +80,6 @@ current--;
 show();
 }
 }
-
-// start
-show();
 </script>
 
 </body>
