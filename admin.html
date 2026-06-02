@@ -5,153 +5,352 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin KomikRyo</title>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
-body{
+*{
 margin:0;
-font-family:Arial;
-background:#111;
-color:white;
-padding:20px;
+padding:0;
+box-sizing:border-box;
 }
 
-h2{margin-bottom:15px;}
+body{
+background:#0f0f0f;
+color:white;
+font-family:Arial,sans-serif;
+padding:20px;
+max-width:900px;
+margin:auto;
+}
+
+h1{
+text-align:center;
+margin-bottom:20px;
+}
+
+.card{
+background:#1a1a1a;
+padding:15px;
+border-radius:15px;
+margin-bottom:20px;
+}
 
 input,select{
 width:100%;
 padding:12px;
-margin:8px 0;
+margin-top:10px;
 border:none;
-border-radius:8px;
-background:#222;
+border-radius:10px;
+background:#262626;
 color:white;
 }
 
 button{
 width:100%;
 padding:12px;
-margin-top:10px;
+margin-top:15px;
 border:none;
-border-radius:8px;
+border-radius:10px;
 background:#4caf50;
 color:white;
 font-weight:bold;
 cursor:pointer;
 }
 
-button:hover{background:#45a049;}
+.preview{
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+margin-top:15px;
+}
 
-.card{
-background:#1b1b1b;
+.preview img{
+width:80px;
+height:120px;
+object-fit:cover;
+border-radius:10px;
+}
+
+.manga{
+display:flex;
+gap:10px;
+background:#222;
 padding:10px;
+border-radius:10px;
 margin-top:10px;
-border-radius:8px;
+}
+
+.manga img{
+width:80px;
+height:110px;
+object-fit:cover;
+border-radius:10px;
+}
+
+.status{
+margin-top:10px;
+font-size:14px;
 }
 </style>
 </head>
-
 <body>
 
-<h2>📤 Admin Upload Komik</h2>
+<h1>📚 Admin KomikRyo</h1>
 
-<input type="text" id="title" placeholder="Judul komik">
-<input type="text" id="chapter" placeholder="Chapter">
+<div class="card">
+
+<input type="text" id="title" placeholder="Judul Manga">
 
 <select id="genre">
 <option>Action</option>
-<option>Romance</option>
-<option>Fantasy</option>
-<option>School Life</option>
+<option>Adventure</option>
 <option>Comedy</option>
+<option>Drama</option>
+<option>Fantasy</option>
+<option>Isekai</option>
+<option>Magic</option>
+<option>Martial Arts</option>
+<option>Mystery</option>
+<option>Psychological</option>
+<option>Romance</option>
+<option>School Life</option>
+<option>Sci-Fi</option>
+<option>Shounen</option>
+<option>Slice of Life</option>
+<option>Supernatural</option>
+<option>Tragedy</option>
 </select>
 
-<!-- MULTI IMAGE -->
-<input type="file" id="img" accept="image/*" multiple>
+<input type="text" id="chapter" placeholder="Chapter">
 
-<button onclick="upload()">Upload Komik</button>
+<label>Cover Manga</label>
+<input type="file" id="cover" accept="image/*">
 
-<h3>📚 Data</h3>
+<label>Halaman Chapter</label>
+<input type="file" id="pages" accept="image/*" multiple>
+
+<div class="preview" id="preview"></div>
+
+<button onclick="uploadManga()">
+Upload Manga
+</button>
+
+<div class="status" id="status"></div>
+
+</div>
+
+<h2>Daftar Manga</h2>
+
 <div id="list"></div>
 
 <script>
-let data = JSON.parse(localStorage.getItem("komik")) || [];
 
-function upload(){
+const SUPABASE_URL = "https://sqjyywohnrxgvdbgdtns.supabase.co";
+const SUPABASE_KEY = "sb_publishable_KY1cmP5Q-KDfiV5MVkuzsw_gNvxe1_c";
 
-let title = document.getElementById("title").value;
-let chapter = document.getElementById("chapter").value;
-let genre = document.getElementById("genre").value;
-let files = document.getElementById("img").files;
+const supabaseClient =
+supabase.createClient(
+SUPABASE_URL,
+SUPABASE_KEY
+);
 
-if(!title || !chapter || files.length === 0){
-alert("Isi semua dulu!");
-return;
-}
+document
+.getElementById("pages")
+.addEventListener("change",function(e){
 
-let pages = [];
-let loaded = 0;
+let preview =
+document.getElementById("preview");
 
-for(let i=0;i<files.length;i++){
+preview.innerHTML = "";
+
+[...e.target.files].forEach(file=>{
 
 let reader = new FileReader();
 
-reader.onload = function(e){
-pages.push(e.target.result);
-loaded++;
+reader.onload = function(x){
 
-if(loaded === files.length){
+preview.innerHTML += `
+<img src="${x.target.result}">
+`;
 
-let item = {
+}
+
+reader.readAsDataURL(file);
+
+});
+
+});
+
+async function uploadManga(){
+
+const title =
+document.getElementById("title").value;
+
+const genre =
+document.getElementById("genre").value;
+
+const chapter =
+document.getElementById("chapter").value;
+
+const cover =
+document.getElementById("cover").files[0];
+
+const pages =
+document.getElementById("pages").files;
+
+if(
+!title ||
+!chapter ||
+!cover ||
+pages.length === 0
+){
+alert("Lengkapi data");
+return;
+}
+
+const status =
+document.getElementById("status");
+
+status.innerHTML =
+"Uploading...";
+
+try{
+
+const coverName =
+"cover_" +
+Date.now() +
+"_" +
+cover.name;
+
+await supabaseClient
+.storage
+.from("manga")
+.upload(
+coverName,
+cover
+);
+
+const coverUrl =
+supabaseClient
+.storage
+.from("manga")
+.getPublicUrl(
+coverName
+)
+.data.publicUrl;
+
+const mangaResult =
+await supabaseClient
+.from("manga")
+.insert([
+{
 title,
-chapter,
 genre,
-img: pages[0],
-pages
-};
-
-data.push(item);
-
-localStorage.setItem("komik", JSON.stringify(data));
-
-render();
-clear();
-
-alert("Upload berhasil!");
+cover:coverUrl
 }
-};
+])
+.select();
 
-reader.readAsDataURL(files[i]);
-}
+const mangaId =
+mangaResult.data[0].id;
+
+let pageUrls = [];
+
+for(const file of pages){
+
+const fileName =
+"page_" +
+Date.now() +
+"_" +
+file.name;
+
+await supabaseClient
+.storage
+.from("manga")
+.upload(
+fileName,
+file
+);
+
+const url =
+supabaseClient
+.storage
+.from("manga")
+.getPublicUrl(
+fileName
+)
+.data.publicUrl;
+
+pageUrls.push(url);
+
 }
 
-function render(){
-let list = document.getElementById("list");
+await supabaseClient
+.from("chapters")
+.insert([
+{
+manga_id:mangaId,
+chapter:chapter,
+pages:pageUrls
+}
+]);
+
+status.innerHTML =
+"✅ Upload berhasil";
+
+loadManga();
+
+}catch(err){
+
+console.log(err);
+
+status.innerHTML =
+"❌ " + err.message;
+
+}
+
+}
+
+async function loadManga(){
+
+const list =
+document.getElementById("list");
+
 list.innerHTML = "";
 
-data.forEach((d,i)=>{
+const { data } =
+await supabaseClient
+.from("manga")
+.select("*")
+.order("id");
+
+if(!data) return;
+
+data.forEach(m=>{
+
 list.innerHTML += `
-<div class="card">
-<b>${d.title}</b><br>
-${d.genre} - Chapter ${d.chapter}<br>
-<button onclick="hapus(${i})">Hapus</button>
+<div class="manga">
+
+<img src="${m.cover}">
+
+<div>
+
+<b>${m.title}</b><br>
+
+${m.genre}
+
+</div>
+
 </div>
 `;
+
 });
+
 }
 
-function hapus(i){
-data.splice(i,1);
-localStorage.setItem("komik", JSON.stringify(data));
-render();
-}
+loadManga();
 
-function clear(){
-document.getElementById("title").value = "";
-document.getElementById("chapter").value = "";
-document.getElementById("img").value = "";
-}
-
-render();
 </script>
 
 </body>
-</html>
+  </html>
