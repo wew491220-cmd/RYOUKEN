@@ -5,59 +5,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KomikRyo</title>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
-body{
+*{
 margin:0;
-font-family:Arial;
+padding:0;
+box-sizing:border-box;
+}
+
+body{
 background:#111;
 color:white;
+font-family:Arial,sans-serif;
 }
 
 header{
-padding:15px;
 background:#1b1b1b;
-font-size:20px;
+padding:15px;
+position:sticky;
+top:0;
+z-index:100;
+}
+
+.logo{
+font-size:24px;
 font-weight:bold;
-text-align:center;
+margin-bottom:10px;
 }
 
 .search{
-padding:10px 15px;
-}
-
-.search input{
 width:100%;
 padding:12px;
 border:none;
-border-radius:8px;
+border-radius:10px;
 background:#222;
 color:white;
-outline:none;
 }
 
-.tags{
+.genre-bar{
 display:flex;
 gap:8px;
-flex-wrap:wrap;
-padding:10px 15px;
+overflow-x:auto;
+padding:15px;
 }
 
-.tag{
-padding:6px 12px;
-background:#222;
+.genre-bar button{
+border:none;
+padding:8px 14px;
 border-radius:20px;
-font-size:12px;
+background:#222;
+color:white;
+white-space:nowrap;
 cursor:pointer;
 }
 
-.tag.active{
+.genre-bar button.active{
 background:#4caf50;
 }
 
 .section-title{
-padding:10px 15px;
-font-weight:bold;
-color:#aaa;
+padding:0 15px;
+font-size:20px;
+margin-top:10px;
+margin-bottom:10px;
 }
 
 .grid{
@@ -69,10 +80,10 @@ padding:15px;
 
 .card{
 background:#1b1b1b;
-border-radius:10px;
+border-radius:12px;
 overflow:hidden;
 cursor:pointer;
-transition:0.2s;
+transition:.2s;
 }
 
 .card:hover{
@@ -81,158 +92,221 @@ transform:scale(1.03);
 
 .card img{
 width:100%;
-height:200px;
+height:220px;
 object-fit:cover;
 }
 
+.card-info{
+padding:10px;
+}
+
 .card h3{
-margin:10px;
 font-size:14px;
+margin-bottom:5px;
 }
 
 .card p{
-margin:10px;
 font-size:12px;
 color:#aaa;
 }
 
-.badge{
-position:absolute;
-background:red;
-color:white;
-font-size:10px;
-padding:3px 6px;
-border-radius:5px;
-margin:5px;
+.loading{
+text-align:center;
+padding:30px;
+}
+
+::-webkit-scrollbar{
+display:none;
 }
 </style>
 </head>
-
 <body>
 
-<header>📚 KomikRyo</header>
+<header>
 
-<div class="search">
-<input id="search" type="text" placeholder="Cari komik...">
+<div class="logo">
+📚 KomikRyo
 </div>
 
-<div class="tags" id="genreTags"></div>
+<input
+type="text"
+class="search"
+id="search"
+placeholder="Cari manga..."
+oninput="filterManga()">
 
-<div class="section-title">🔥 Trending Hari Ini</div>
-<div id="trending" class="grid"></div>
+</header>
 
-<div class="section-title">📖 Semua Komik</div>
-<div id="list" class="grid"></div>
+<div class="genre-bar">
+
+<button class="active" onclick="setGenre('All',this)">
+All
+</button>
+
+<button onclick="setGenre('Action',this)">Action</button>
+<button onclick="setGenre('Adventure',this)">Adventure</button>
+<button onclick="setGenre('Comedy',this)">Comedy</button>
+<button onclick="setGenre('Drama',this)">Drama</button>
+<button onclick="setGenre('Fantasy',this)">Fantasy</button>
+<button onclick="setGenre('Isekai',this)">Isekai</button>
+<button onclick="setGenre('Romance',this)">Romance</button>
+<button onclick="setGenre('School Life',this)">School Life</button>
+<button onclick="setGenre('Sci-Fi',this)">Sci-Fi</button>
+<button onclick="setGenre('Shounen',this)">Shounen</button>
+
+</div>
+
+<h2 class="section-title">
+🔥 Trending Manga
+</h2>
+
+<div class="grid" id="list">
+
+<div class="loading">
+Loading...
+</div>
+
+</div>
 
 <script>
-let allData = [];
-let currentGenre = "all";
 
-// LOAD DATA
-fetch("data.json")
-.then(res => res.json())
-.then(data => {
-allData = data;
-render();
-});
+const SUPABASE_URL =
+"URL_SUPABASE_KAMU";
 
-// RENDER ALL
-function render(){
-renderTrending();
-renderList();
-renderGenres();
-}
+const SUPABASE_KEY =
+"PUBLISHABLE_KEY_KAMU";
 
-// TRENDING (auto random / simulasi populer)
-function renderTrending(){
-let trending = [...allData]
-.sort(() => 0.5 - Math.random())
-.slice(0, 4);
-
-let box = document.getElementById("trending");
-box.innerHTML = "";
-
-trending.forEach(item => {
-box.innerHTML += `
-<div class="card" onclick="openManga('${item.title}')">
-<img src="${item.img}">
-<h3>${item.title}</h3>
-<p>${item.genre}</p>
-</div>
-`;
-});
-}
-
-// LIST + FILTER
-function renderList(){
-let box = document.getElementById("list");
-box.innerHTML = "";
-
-let filtered = allData.filter(item => {
-let matchGenre = currentGenre === "all" || item.genre === currentGenre;
-return matchGenre;
-});
-
-filtered.forEach(item => {
-box.innerHTML += `
-<div class="card" onclick="openManga('${item.title}')">
-<img src="${item.img}">
-<h3>${item.title}</h3>
-<p>${item.genre}</p>
-</div>
-`;
-});
-}
-
-// GENRE BUTTONS
-function renderGenres(){
-let genres = ["all", ...new Set(allData.map(x => x.genre))];
-
-let box = document.getElementById("genreTags");
-box.innerHTML = "";
-
-genres.forEach(g => {
-box.innerHTML += `
-<div class="tag ${currentGenre===g?'active':''}" onclick="setGenre('${g}')">
-${g}
-</div>
-`;
-});
-}
-
-function setGenre(g){
-currentGenre = g;
-render();
-}
-
-// SEARCH
-document.getElementById("search").addEventListener("input", function(){
-let keyword = this.value.toLowerCase();
-
-let filtered = allData.filter(item =>
-item.title.toLowerCase().includes(keyword)
+const supabaseClient =
+supabase.createClient(
+SUPABASE_URL,
+SUPABASE_KEY
 );
 
-document.getElementById("list").innerHTML = "";
+let allManga = [];
+let currentGenre = "All";
 
-filtered.forEach(item => {
-document.getElementById("list").innerHTML += `
-<div class="card" onclick="openManga('${item.title}')">
-<img src="${item.img}">
-<h3>${item.title}</h3>
-<p>${item.genre}</p>
-</div>
-`;
-});
-});
+async function loadManga(){
 
-// OPEN MANGA
-function openManga(title){
-let index = allData.findIndex(x => x.title === title);
-localStorage.setItem("selectedManga", index);
-window.location.href = "manga.html";
+const { data, error } =
+await supabaseClient
+.from("manga")
+.select("*")
+.order("id",{ascending:false});
+
+if(error){
+console.log(error);
+return;
 }
+
+allManga = data;
+
+render(allManga);
+
+}
+
+function render(data){
+
+let list =
+document.getElementById("list");
+
+list.innerHTML = "";
+
+if(data.length === 0){
+
+list.innerHTML =
+"<div class='loading'>Tidak ada manga</div>";
+
+return;
+
+}
+
+data.forEach(item=>{
+
+list.innerHTML += `
+
+<div
+class="card"
+onclick="openManga(${item.id})">
+
+<img src="${item.cover}">
+
+<div class="card-info">
+
+<h3>${item.title}</h3>
+
+<p>${item.genre}</p>
+
+</div>
+
+</div>
+
+`;
+
+});
+
+}
+
+function filterManga(){
+
+let keyword =
+document
+.getElementById("search")
+.value
+.toLowerCase();
+
+let filtered =
+allManga.filter(m=>{
+
+let genreMatch =
+currentGenre === "All" ||
+m.genre === currentGenre;
+
+let titleMatch =
+m.title
+.toLowerCase()
+.includes(keyword);
+
+return genreMatch &&
+titleMatch;
+
+});
+
+render(filtered);
+
+}
+
+function setGenre(
+genre,
+btn
+){
+
+currentGenre = genre;
+
+document
+.querySelectorAll(".genre-bar button")
+.forEach(b=>b.classList.remove("active"));
+
+btn.classList.add("active");
+
+filterManga();
+
+}
+
+function openManga(id){
+
+localStorage.setItem(
+"selectedMangaId",
+id
+);
+
+window.location.href =
+"manga.html";
+
+}
+
+loadManga();
+
 </script>
 
 </body>
-</html>
+  </html>
