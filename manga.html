@@ -3,63 +3,172 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Detail Komik</title>
+<title>KomikRyo</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 body{
 margin:0;
-font-family:Arial;
+font-family:Arial,sans-serif;
 background:#111;
 color:white;
+}
+
+.cover{
+width:100%;
+height:350px;
+object-fit:cover;
+}
+
+.info{
 padding:15px;
 }
 
-img{
-width:100%;
-border-radius:10px;
+.title{
+font-size:24px;
+font-weight:bold;
+margin-bottom:10px;
 }
 
-button{
-width:100%;
-padding:12px;
-margin-top:15px;
-border:none;
-border-radius:8px;
-background:#4caf50;
-color:white;
-font-weight:bold;
+.genre{
+display:inline-block;
+background:#222;
+padding:6px 12px;
+border-radius:20px;
+font-size:14px;
+}
+
+.chapter-list{
+padding:15px;
+}
+
+.chapter{
+background:#1b1b1b;
+padding:15px;
+margin-bottom:10px;
+border-radius:10px;
 cursor:pointer;
+}
+
+.chapter:hover{
+background:#252525;
 }
 </style>
 </head>
-
 <body>
 
-<h2 id="title"></h2>
-<img id="cover">
-<p id="genre"></p>
+<img id="cover" class="cover">
 
-<button onclick="read()">📖 Baca Komik</button>
+<div class="info">
+
+<div id="title" class="title"></div>
+
+<div id="genre" class="genre"></div>
+
+</div>
+
+<div class="chapter-list" id="chapters">
+
+Loading...
+
+</div>
 
 <script>
-let data = [];
-let index = localStorage.getItem("selectedManga");
 
-fetch("data.json")
-.then(res => res.json())
-.then(json => {
-data = json;
+const SUPABASE_URL =
+"URL_SUPABASE_KAMU";
 
-let manga = data[index];
+const SUPABASE_KEY =
+"PUBLISHABLE_KEY_KAMU";
 
-document.getElementById("title").innerText = manga.title;
-document.getElementById("cover").src = manga.img;
-document.getElementById("genre").innerText = manga.genre;
+const supabaseClient =
+supabase.createClient(
+SUPABASE_URL,
+SUPABASE_KEY
+);
+
+const mangaId =
+localStorage.getItem(
+"selectedMangaId"
+);
+
+async function loadManga(){
+
+const { data:manga } =
+await supabaseClient
+.from("manga")
+.select("*")
+.eq("id", mangaId)
+.single();
+
+document.getElementById("title").innerText =
+manga.title;
+
+document.getElementById("genre").innerText =
+manga.genre;
+
+document.getElementById("cover").src =
+manga.cover;
+
+const { data:chapters } =
+await supabaseClient
+.from("chapters")
+.select("*")
+.eq("manga_id", mangaId);
+
+renderChapters(chapters);
+
+}
+
+function renderChapters(chapters){
+
+let box =
+document.getElementById("chapters");
+
+box.innerHTML = "";
+
+if(chapters.length===0){
+
+box.innerHTML =
+"Tidak ada chapter";
+
+return;
+
+}
+
+chapters.forEach(ch=>{
+
+box.innerHTML += `
+
+<div
+class="chapter"
+onclick="openChapter('${ch.chapter}')">
+
+📖 Chapter ${ch.chapter}
+
+</div>
+
+`;
+
 });
 
-function read(){
-window.location.href = "reader.html";
 }
+
+function openChapter(chapter){
+
+localStorage.setItem(
+"selectedChapter",
+chapter
+);
+
+window.location.href =
+"reader.html";
+
+}
+
+loadManga();
+
 </script>
 
 </body>
