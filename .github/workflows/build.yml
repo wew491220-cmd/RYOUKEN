@@ -1,4 +1,4 @@
-name: Flutter Build (Auto Gradle Patch)
+name: Flutter APK Auto Build
 
 on:
   workflow_dispatch:
@@ -13,14 +13,15 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.47.0"
-  MIN_GRADLE_VERSION: "8.14"
+  MIN_GRADLE: "8.14"
+  MIN_AGP: "8.11.1"
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
-      - name: Download project ZIP from release
+      - name: Download Flutter project ZIP
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.release_tag }}
@@ -31,7 +32,6 @@ jobs:
           ZIP="$(find input -maxdepth 1 -type f -name '*.zip' | head -n1)"
           test -n "$ZIP"
           unzip -q "$ZIP" -d project
-          # If the ZIP contains a single top-level directory, build from it.
           dirs=(project/*)
           if [ "${#dirs[@]}" -eq 1 ] && [ -d "${dirs[0]}" ] && [ -f "${dirs[0]}/pubspec.yaml" ]; then
             mv "${dirs[0]}" project_root
@@ -39,34 +39,7 @@ jobs:
             mv project project_root
           fi
 
-      - name: Auto patch Gradle wrapper
-        working-directory: project_root
-        run: |
-          set -euo pipefail
-          WRAPPER="android/gradle/wrapper/gradle-wrapper.properties"
-          MIN_GRADLE="${MIN_GRADLE_VERSION}"
-          if [ -f "$WRAPPER" ]; then
-            current="$(sed -n 's/.*gradle-\([0-9][0-9.]*\)-.*/\1/p' "$WRAPPER" | head -n1 || true)"
-            if [ -n "$current" ] && [ "$(printf '%s\n' "$current" "$MIN_GRADLE" | sort -V | head -n1)" != "$MIN_GRADLE" ]; then
-              python3 - "$WRAPPER" "$MIN_GRADLE" <<'PY2'
-          import re, sys
-          p, minimum = sys.argv[1:]
-          s = open(p, encoding='utf-8').read()
-          new = re.sub(r'(distributionUrl=.*?/gradle-)\d+(?:\.\d+)+(-[^/\s]+\.zip)', rf'\g<1>{minimum}\g<2>', s)
-          if new == s:
-              raise SystemExit('Unable to patch Gradle distributionUrl')
-          open(p, 'w', encoding='utf-8').write(new)
-          PY2
-              echo "Patched Gradle wrapper: $current -> $MIN_GRADLE"
-            else
-              echo "Gradle wrapper is already compatible: ${current:-unknown}"
-            fi
-          else
-            echo "No Gradle wrapper found; leaving project unchanged."
-          fi
-          grep -n 'distributionUrl=' "$WRAPPER" 2>/dev/null || true
-
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -79,6 +52,76 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+
+      - name: Auto fix Gradle + Android Gradle Plugin
+        working-directory: project_root
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          MIN_GRADLE=(8,14)
+          MIN_AGP=(8,11,1)
+
+          def ver(s):
+              m=re.match(r'^(\d+(?:\.\d+){0,3})', s)
+              return tuple(map(int,m.group(1).split('.'))) if m else (0,)
+
+          # Patch every Gradle wrapper, regardless of URL prefix/escaping.
+          wrappers=list(Path('.').glob('**/gradle/wrapper/gradle-wrapper.properties'))
+          for p in wrappers:
+              text=p.read_text(errors='ignore')
+              found=re.search(r'gradle-(\d+(?:\.\d+)+)-(?:all|bin)\.zip', text)
+              current=ver(found.group(1)) if found else (0,)
+              if current < MIN_GRADLE:
+                  text2=re.sub(r'gradle-\d+(?:\.\d+)+-(?:all|bin)\.zip', 'gradle-8.14-all.zip', text)
+                  if text2 == text and re.search(r'(?m)^\s*distributionUrl\s*=', text):
+                      text2=re.sub(r'(?m)^\s*distributionUrl\s*=.*$', r'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14-all.zip', text)
+                  if text2 == text:
+                      raise SystemExit(f'Unable to patch Gradle distributionUrl: {p}')
+                  p.write_text(text2)
+                  print(f'PATCHED GRADLE {p}: {current} -> 8.14')
+              else:
+                  print(f'GRADLE OK {p}: {current}')
+
+          # Patch AGP in modern plugins DSL and legacy buildscript classpath.
+          files=[]
+          for pat in ('**/settings.gradle','**/settings.gradle.kts','**/build.gradle','**/build.gradle.kts'):
+              files.extend(Path('.').glob(pat))
+          seen=set()
+          for p in files:
+              if p in seen: continue
+              seen.add(p)
+              text=p.read_text(errors='ignore')
+              original=text
+
+              def plugin(m):
+                  old=ver(m.group(2))
+                  return m.group(1) + ('8.11.1' if old < MIN_AGP else m.group(2)) + m.group(3)
+              text=re.sub(r'(id\s*\(?\s*[\'\"]com\.android\.(?:application|library)[\'\"]\s*\)?\s*version\s*[\'\"])(\d+(?:\.\d+)+)([\'\"])', plugin, text)
+
+              def cp(m):
+                  old=ver(m.group(2))
+                  return m.group(1) + ('8.11.1' if old < MIN_AGP else m.group(2)) + m.group(3)
+              text=re.sub(r'(com\.android\.tools\.build:gradle:)(\d+(?:\.\d+)+)(\b)', cp, text)
+
+              if text != original:
+                  p.write_text(text)
+                  print(f'PATCHED AGP {p}')
+
+          print('ANDROID COMPATIBILITY AUTO-FIX COMPLETE')
+          PY
+
+      - name: Show Android tool versions
+        working-directory: project_root
+        run: |
+          echo '--- Gradle wrapper ---'
+          grep -R "distributionUrl=" android/gradle/wrapper/gradle-wrapper.properties 2>/dev/null || true
+          echo '--- AGP references ---'
+          grep -RInE 'com\.android\.(application|library).*version|com\.android\.tools\.build:gradle:' android --include='*.gradle' --include='*.gradle.kts' 2>/dev/null || true
+          echo '--- Flutter ---'
+          flutter --version
 
       - name: Flutter pub get
         working-directory: project_root
