@@ -2,16 +2,42 @@ name: Flutter APK Build
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Temporary release tag containing the project ZIP"
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  contents: write
+  actions: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Download project ZIP from Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -e
+          mkdir -p /tmp/project
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "*.zip" --dir /tmp/project
+          ZIP_FILE="$(find /tmp/project -maxdepth 1 -type f -name '*.zip' | head -n 1)"
+          test -n "$ZIP_FILE"
+          unzip -q "$ZIP_FILE" -d /tmp/project/extracted
+
+      - name: Locate Flutter project
+        run: |
+          set -e
+          PROJECT_DIR="$(find /tmp/project/extracted -name pubspec.yaml -type f -print -quit | xargs -r dirname)"
+          test -n "$PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -20,14 +46,16 @@ jobs:
           cache: true
 
       - name: Flutter pub get
+        working-directory: ${{ env.PROJECT_DIR }}
         run: flutter pub get
 
       - name: Build APK
+        working-directory: ${{ env.PROJECT_DIR }}
         run: flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: flutter-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
