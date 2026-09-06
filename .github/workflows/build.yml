@@ -106,7 +106,7 @@ jobs:
               def agp_plugin(m):
                   old=ver(m.group(2))
                   return m.group(1)+('8.11.1' if old < MIN_AGP else m.group(2))+m.group(3)
-              text=re.sub(r"(id\s*\(?\s*['"]com\.android\.(?:application|library)['"]\s*\)?\s*version\s*['"])(\d+(?:\.\d+)+)(['"])", agp_plugin, text)
+              text=re.sub(r"(id\s*\(?\s*['\"]com\.android\.(?:application|library)['\"]\s*\)?\s*version\s*['\"])(\d+(?:\.\d+)+)(['\"])", agp_plugin, text)
 
               # AGP legacy classpath
               def agp_cp(m):
@@ -118,7 +118,7 @@ jobs:
               def kotlin_plugin(m):
                   old=ver(m.group(2))
                   return m.group(1)+('2.2.20' if old < MIN_KOTLIN else m.group(2))+m.group(3)
-              text=re.sub(r"(id\s*\(?\s*['"]org\.jetbrains\.kotlin\.(?:android|jvm)['"]\s*\)?\s*version\s*['"])(\d+(?:\.\d+)+)(['"])", kotlin_plugin, text)
+              text=re.sub(r'''(id\s*\(?\s*['\"]org\.jetbrains\.kotlin\.(?:android|jvm)['\"]\s*\)?\s*version\s*['\"])(\d+(?:\.\d+)+)(['\"])''', kotlin_plugin, text)
 
               # Kotlin legacy classpath.
               def kotlin_cp(m):
@@ -130,7 +130,7 @@ jobs:
               def kotlin_var(m):
                   old=ver(m.group(3))
                   return m.group(1)+m.group(2)+('2.2.20' if old < MIN_KOTLIN else m.group(3))+m.group(4)
-              text=re.sub(r"((?:ext\.|def\s+|val\s+)?(?:kotlin[_-]?version)\s*[=:]\s*['"])(\d+(?:\.\d+)+)(['"])", lambda m: m.group(0) if ver(m.group(2)) >= MIN_KOTLIN else m.group(1)+'2.2.20'+m.group(3), text, flags=re.I)
+              text=re.sub(r'''((?:ext\.|def\s+|val\s+)?(?:kotlin[_-]?version)\s*[=:]\s*['\"])(\d+(?:\.\d+)+)(['\"])''', lambda m: m.group(0) if ver(m.group(2)) >= MIN_KOTLIN else m.group(1)+'2.2.20'+m.group(3), text, flags=re.I)
 
               if text != original:
                   p.write_text(text)
