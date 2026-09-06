@@ -1,61 +1,97 @@
-name: Flutter APK Build
+name: Flutter Build (Auto Gradle Patch)
 
 on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Temporary release tag containing the project ZIP"
+        description: GitHub Release tag containing the Flutter ZIP
         required: true
         type: string
 
 permissions:
-  contents: write
-  actions: read
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.47.0"
+  MIN_GRADLE_VERSION: "8.14.0"
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 45
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download project ZIP from Release
+      - name: Download project ZIP from release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          TAG: ${{ inputs.release_tag }}
         run: |
-          set -e
-          mkdir -p /tmp/project
-          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "*.zip" --dir /tmp/project
-          ZIP_FILE="$(find /tmp/project -maxdepth 1 -type f -name '*.zip' | head -n 1)"
-          test -n "$ZIP_FILE"
-          unzip -q "$ZIP_FILE" -d /tmp/project/extracted
+          set -euo pipefail
+          mkdir -p input project
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.zip' --dir input
+          ZIP="$(find input -maxdepth 1 -type f -name '*.zip' | head -n1)"
+          test -n "$ZIP"
+          unzip -q "$ZIP" -d project
+          # If the ZIP contains a single top-level directory, build from it.
+          dirs=(project/*)
+          if [ "${#dirs[@]}" -eq 1 ] && [ -d "${dirs[0]}" ] && [ -f "${dirs[0]}/pubspec.yaml" ]; then
+            mv "${dirs[0]}" project_root
+          else
+            mv project project_root
+          fi
 
-      - name: Locate Flutter project
+      - name: Auto patch Gradle wrapper
+        working-directory: project_root
         run: |
-          set -e
-          PROJECT_DIR="$(find /tmp/project/extracted -name pubspec.yaml -type f -print -quit | xargs -r dirname)"
-          test -n "$PROJECT_DIR"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          set -euo pipefail
+          WRAPPER="android/gradle/wrapper/gradle-wrapper.properties"
+          MIN_GRADLE="${MIN_GRADLE_VERSION}"
+          if [ -f "$WRAPPER" ]; then
+            current="$(sed -n 's/.*gradle-\([0-9][0-9.]*\)-.*/\1/p' "$WRAPPER" | head -n1 || true)"
+            if [ -n "$current" ] && [ "$(printf '%s\n' "$current" "$MIN_GRADLE" | sort -V | head -n1)" != "$MIN_GRADLE" ]; then
+              python3 - "$WRAPPER" "$MIN_GRADLE" <<'PY2'
+          import re, sys
+          p, minimum = sys.argv[1:]
+          s = open(p, encoding='utf-8').read()
+          new = re.sub(r'(distributionUrl=.*?/gradle-)\d+(?:\.\d+)+(-[^/\s]+\.zip)', rf'\g<1>{minimum}\g<2>', s)
+          if new == s:
+              raise SystemExit('Unable to patch Gradle distributionUrl')
+          open(p, 'w', encoding='utf-8').write(new)
+          PY2
+              echo "Patched Gradle wrapper: $current -> $MIN_GRADLE"
+            else
+              echo "Gradle wrapper is already compatible: ${current:-unknown}"
+            fi
+          else
+            echo "No Gradle wrapper found; leaving project unchanged."
+          fi
+          grep -n 'distributionUrl=' "$WRAPPER" 2>/dev/null || true
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
 
       - name: Flutter pub get
-        working-directory: ${{ env.PROJECT_DIR }}
+        working-directory: project_root
         run: flutter pub get
 
       - name: Build APK
-        working-directory: ${{ env.PROJECT_DIR }}
+        working-directory: project_root
         run: flutter build apk --release
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: flutter-apk
-          path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk
+          path: project_root/build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error
+          retention-days: 7
